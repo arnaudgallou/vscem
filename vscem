@@ -1,0 +1,55 @@
+#!/bin/bash
+
+_export() {
+  dir="$(dirname "$0")"
+  file="$dir"/vscode-extensions.txt
+  echo "Exporting extension IDs..."
+  code --list-extensions > "$file"
+}
+
+fetch() {
+  if [[ $# -eq 0 ]]; then
+    echo "No arguments provided." >&2
+    exit 1
+  elif [[ $# -eq 1 && "$1" = "-a" ]]; then
+    code --list-extensions
+  elif [[ $# -eq 1 && -f "$1" ]]; then
+    cat "$1"
+  else
+    printf "%s\n" "$@"
+  fi
+}
+
+_update() {
+  fetch "$@" | xargs -L 1 -I {} code --install-extension {} --force
+}
+
+_install() {
+  if [[ $# -eq 1 && "$1" = "-a" ]]; then
+    echo "Can't use the '$1' option with 'install'." >&2
+    exit 1
+  fi
+  fetch "$@" | xargs -L 1 code --install-extension
+}
+
+_uninstall() {
+  if [[ $# -eq 1 && "$1" = "-a" ]]; then
+    echo "Do you want to export the list of extensions before pursuing?"
+    select answer in "Yes" "No" "Cancel"; do
+      [[ "$answer" = "Cancel" ]] && exit
+      [[ "$answer" = "Yes" ]] && _export
+      break
+    done
+  fi
+  fetch "$@" | xargs -L 1 code --uninstall-extension
+}
+
+case "$1" in
+  export   ) _export ;;
+  update   ) _update "${@:2}" ;;
+  install  ) _install "${@:2}" ;;
+  uninstall) _uninstall "${@:2}" ;;
+  *        )
+    [[ -z "$1" ]] && echo "No functions supplied." || echo "Invalid function '$1'."
+  ;;
+esac
